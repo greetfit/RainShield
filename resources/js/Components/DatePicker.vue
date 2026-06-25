@@ -14,6 +14,7 @@ const props = defineProps({
 const root = ref(null);
 const open = ref(false);
 const panelStyle = ref({});
+const teleportTarget = ref('body');
 const viewDate = ref(new Date());
 const time = ref({ hour: '09', minute: '00' });
 const weekdays = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
@@ -114,6 +115,7 @@ function clear() {
 function toggle() {
     if (props.readonly) return;
     syncFromModel();
+    teleportTarget.value = root.value?.closest('dialog') ?? 'body';
     open.value = !open.value;
     if (open.value) {
         nextTick(updatePanelPosition);
@@ -161,6 +163,7 @@ watch(open, (value) => {
 
 onMounted(() => {
     syncFromModel();
+    teleportTarget.value = root.value?.closest('dialog') ?? 'body';
     document.addEventListener('mousedown', closeOnOutside);
     window.addEventListener('resize', updatePanelPosition);
     window.addEventListener('scroll', updatePanelPosition, true);
@@ -190,11 +193,11 @@ onBeforeUnmount(() => {
             <AppIcon name="calendar" />
         </button>
 
-        <Teleport to="body">
+        <Teleport :to="teleportTarget">
             <div
                 v-if="open"
                 data-date-picker-panel
-                class="z-[9999] max-h-[calc(100vh-1rem)] overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-950"
+                class="z-[99999] max-h-[calc(100vh-1rem)] overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-950"
                 :style="panelStyle"
             >
                 <div class="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-800">

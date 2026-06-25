@@ -5,8 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Delivery;
 use App\Models\FinishedGood;
 use App\Models\JobCard;
+use App\Models\JobCardPartMovement;
 use App\Models\PartStockBalance;
+use App\Models\PaymentMethod;
 use App\Models\RawMaterial;
+use App\Models\Staff;
 use App\Models\StockBalance;
 use App\Models\WorkOrder;
 use Illuminate\Support\Facades\DB;
@@ -122,7 +125,6 @@ class DashboardController extends Controller
         $partStockSummary = PartStockBalance::query()
             ->with(['productVariant.product', 'part'])
             ->orderBy('quantity')
-            ->limit(8)
             ->get()
             ->map(fn (PartStockBalance $balance) => [
                 'label' => $balance->productVariant->product->name.' - '.$balance->productVariant->name,
@@ -153,6 +155,123 @@ class DashboardController extends Controller
             'lowPartStock' => $lowPartStock,
             'productStockAlerts' => $productStockAlerts,
             'partStockSummary' => $partStockSummary,
+            'staffWorkflows' => $this->staffWorkflows(),
+            'paymentMethods' => PaymentMethod::activeOptions(),
         ]);
+    }
+
+    private function staffWorkflows()
+    {
+        $jobCards = JobCard::query()
+            ->with([
+                'staff.designationRecord',
+                'workOrder.productVariant.product',
+                'workOrder.parts.part',
+                'payments',
+                'receipts',
+                'partMovements.part',
+            ])
+            ->whereHas('workOrder', fn ($query) => $query->where('status', 'in_production'))
+            ->whereNotNull('staff_id')
+            ->latest('id')
+            ->get();
+
+        $cardsByStaff = $jobCards->groupBy('staff_id');
+
+        return Staff::query()
+            ->with('designationRecord')
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get()
+            ->map(function (Staff $staff) use ($cardsByStaff) {
+                $cards = $cardsByStaff->get($staff->id, collect());
+                $activeCards = $cards
+                    ->filter(fn (JobCard $card) => $card->status !== 'completed' || abs($card->wage_balance) > 0.005)
+                    ->values();
+
+                return [
+                    'id' => $staff->id,
+                    'name' => $staff->name,
+                    'designation' => $staff->designationRecord?->name ?? $staff->designation,
+                    'salary_type' => $staff->salary_type,
+                    'open_cards_count' => $activeCards->where('status', '!=', 'completed')->count(),
+                    'pending_wage' => round((float) $cards->sum(fn (JobCard $card) => max(0, $card->wage_balance)), 2),
+                    'overpaid_wage' => round(abs((float) $cards->sum(fn (JobCard $card) => min(0, $card->wage_balance))), 2),
+                    'cards' => $activeCards->map(fn (JobCard $card) => $this->dashboardJobCard($card))->values(),
+                ];
+            })
+            ->filter(fn (array $staff) => $staff['open_cards_count'] > 0 || $staff['pending_wage'] > 0 || $staff['overpaid_wage'] > 0)
+            ->values();
+    }
+
+    private function dashboardJobCard(JobCard $card): array
+    {
+        $workOrder = $card->workOrder;
+
+        return [
+            'id' => $card->id,
+            'stage' => $card->stage,
+            'stage_label' => ucfirst(str_replace('_', ' ', $card->stage)),
+            'work_order_id' => $workOrder?->id,
+            'work_order_code' => $workOrder?->code ?? 'WO#'.$workOrder?->id,
+            'product' => $workOrder?->productVariant
+                ? $workOrder->productVariant->product->name.' - '.$workOrder->productVariant->name
+                : '-',
+            'status' => $card->status,
+            'quantity_issued' => (int) $card->quantity_issued,
+            'quantity_received' => (int) ($card->quantity_received ?? 0),
+            'quantity_damaged' => (int) ($card->quantity_damaged ?? 0),
+            'pending_quantity' => $card->pending_quantity,
+            'wage_amount' => (float) $card->wage_amount,
+            'wage_paid_amount' => (float) $card->wage_paid_amount,
+            'wage_balance' => $card->wage_balance,
+            'started_at_input' => $card->started_at?->format('Y-m-d\TH:i'),
+            'parts' => $workOrder?->parts
+                ? $workOrder->parts->map(fn ($part) => [
+                    'part_id' => $part->part_id,
+                    'name' => $part->part->name,
+                    'required' => (int) $part->quantity,
+                    'issued' => (int) $card->partMovements
+                        ->where('part_id', $part->part_id)
+                        ->where('type', JobCardPartMovement::ISSUE)
+                        ->sum('quantity'),
+                ])->values()
+                : [],
+            'payments' => $card->payments
+                ->sortByDesc('paid_on')
+                ->values()
+                ->map(fn ($payment) => [
+                    'id' => $payment->id,
+                    'paid_on' => $payment->paid_on?->format('d/m/Y'),
+                    'amount' => (float) $payment->amount,
+                    'method' => $payment->method,
+                    'reference' => $payment->reference,
+                    'source' => $payment->source,
+                ]),
+            'receipts' => $card->receipts
+                ->sortByDesc('received_at')
+                ->values()
+                ->map(fn ($receipt) => [
+                    'id' => $receipt->id,
+                    'received_at' => $receipt->received_at?->format('Y-m-d H:i'),
+                    'quantity_received' => (int) $receipt->quantity_received,
+                    'quantity_damaged' => (int) $receipt->quantity_damaged,
+                    'wage_amount' => (float) $receipt->wage_amount,
+                    'wage_paid_amount' => (float) $receipt->wage_paid_amount,
+                    'duration_minutes' => $receipt->duration_minutes,
+                ]),
+            'part_movements' => $card->partMovements
+                ->sortByDesc('created_at')
+                ->values()
+                ->map(fn ($movement) => [
+                    'id' => $movement->id,
+                    'type' => $movement->type,
+                    'part' => $movement->part?->name,
+                    'part_id' => $movement->part_id,
+                    'quantity' => (int) $movement->quantity,
+                    'created_at' => $movement->created_at?->format('Y-m-d H:i'),
+                    'notes' => $movement->notes,
+                ]),
+        ];
     }
 }

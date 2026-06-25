@@ -3,8 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\JobCard;
-use App\Models\JobCardPayment;
 use App\Models\JobCardPartMovement;
+use App\Models\JobCardPayment;
+use App\Models\PartStockMovement;
 use App\Models\PieceRate;
 use App\Models\ProductionStage;
 use App\Models\Staff;
@@ -364,17 +365,37 @@ class JobCardController extends Controller
         return back()->with('success', 'Job card updated.');
     }
 
-    public function destroy(JobCard $jobCard)
+    public function destroy(JobCard $jobCard, PartStockService $partStock)
     {
-        if ($jobCard->partMovements()->exists()) {
+        $jobCard->loadMissing('workOrder');
+
+        if ($jobCard->workOrder->status !== 'in_production') {
             return back()->withErrors([
-                'job_card' => 'This job card has part movement records. Keep it for stock/accountability history.',
+                'job_card' => 'Job cards can only be deleted while the work order is still in production.',
             ]);
         }
 
-        $jobCard->delete();
+        if ($this->hasLaterStageJobCards($jobCard)) {
+            return back()->withErrors([
+                'job_card' => 'This job card has later stage work based on it. Delete the later stage job cards first.',
+            ]);
+        }
 
-        return back()->with('success', 'Job card removed.');
+        try {
+            DB::transaction(function () use ($jobCard, $partStock) {
+                $jobCard->loadMissing('partMovements', 'workOrder.parts');
+
+                $this->reverseJobCardPartSideEffects($jobCard, $partStock);
+
+                $jobCard->delete();
+            });
+        } catch (RuntimeException $exception) {
+            return back()->withErrors([
+                'job_card' => $exception->getMessage(),
+            ]);
+        }
+
+        return back()->with('success', 'Job card removed and related stock records were reversed.');
     }
 
     private function remainingStageQuantity(WorkOrder $workOrder, string $stage, ?int $excludingJobCardId = null): int
@@ -401,6 +422,160 @@ class JobCardController extends Controller
         }
 
         return PieceRate::resolve($data['stage'], (int) $workOrder->product_variant_id, (int) $data['staff_id']);
+    }
+
+    private function hasLaterStageJobCards(JobCard $jobCard): bool
+    {
+        $stages = ProductionStage::query()
+            ->active()
+            ->where('slug', '!=', 'cutting')
+            ->orderBy('priority_level')
+            ->orderBy('id')
+            ->pluck('slug')
+            ->values();
+
+        $stageIndex = $stages->search($jobCard->stage);
+
+        if ($stageIndex === false) {
+            return false;
+        }
+
+        $laterStages = $stages->slice($stageIndex + 1)->values();
+
+        if ($laterStages->isEmpty()) {
+            return false;
+        }
+
+        return $jobCard->workOrder->jobCards()
+            ->whereKeyNot($jobCard->id)
+            ->whereIn('stage', $laterStages)
+            ->exists();
+    }
+
+    private function reverseJobCardPartSideEffects(JobCard $jobCard, PartStockService $partStock): void
+    {
+        $workOrder = $jobCard->workOrder()->lockForUpdate()->firstOrFail();
+        $productVariantId = (int) $workOrder->product_variant_id;
+
+        $extraIssues = PartStockMovement::query()
+            ->where('reference_type', JobCardPartMovement::class)
+            ->where('reference_id', $jobCard->id)
+            ->where('stock_type', 'good')
+            ->where('direction', 'out')
+            ->get();
+
+        foreach ($extraIssues as $movement) {
+            $quantity = (int) $movement->quantity;
+
+            if ($quantity <= 0) {
+                continue;
+            }
+
+            $partStock->receiveGood(
+                $productVariantId,
+                (int) $movement->part_id,
+                $quantity,
+                (float) $movement->unit_cost,
+                JobCard::class,
+                $jobCard->id,
+                'Reversed extra part issue after deleting job card.',
+            );
+
+            $this->reduceWorkOrderPartAllocation(
+                $workOrder,
+                (int) $movement->part_id,
+                $quantity,
+                (float) $movement->unit_cost,
+            );
+        }
+
+        foreach ($jobCard->partMovements as $movement) {
+            $quantity = (int) $movement->quantity;
+
+            if ($quantity <= 0) {
+                continue;
+            }
+
+            if ($movement->type === JobCardPartMovement::RETURN_GOOD) {
+                $partStock->issueGood(
+                    $productVariantId,
+                    (int) $movement->part_id,
+                    $quantity,
+                    JobCard::class,
+                    $jobCard->id,
+                    'Reversed good part return after deleting job card.',
+                );
+            }
+
+            if ($movement->type === JobCardPartMovement::RETURN_RECOVERABLE) {
+                $partStock->issueRecoverable(
+                    $productVariantId,
+                    (int) $movement->part_id,
+                    $quantity,
+                    JobCard::class,
+                    $jobCard->id,
+                    'Reversed recoverable part return after deleting job card.',
+                );
+
+                $this->reduceWorkOrderPartDamage($workOrder, (int) $movement->part_id, $quantity);
+            }
+
+            if ($movement->type === JobCardPartMovement::SCRAP) {
+                $partStock->recordScrapReversal(
+                    $productVariantId,
+                    (int) $movement->part_id,
+                    $quantity,
+                    JobCard::class,
+                    $jobCard->id,
+                    'Reversed scrap record after deleting job card.',
+                );
+
+                $this->reduceWorkOrderPartDamage($workOrder, (int) $movement->part_id, $quantity);
+            }
+        }
+
+        $workOrder->update([
+            'material_cost' => round((float) $workOrder->parts()->sum('total_cost'), 2),
+        ]);
+    }
+
+    private function reduceWorkOrderPartAllocation(WorkOrder $workOrder, int $partId, int $quantity, float $unitCost): void
+    {
+        $workOrderPart = WorkOrderPart::query()
+            ->where('work_order_id', $workOrder->id)
+            ->where('part_id', $partId)
+            ->lockForUpdate()
+            ->first();
+
+        if (! $workOrderPart) {
+            return;
+        }
+
+        $newQuantity = max(0, (int) $workOrderPart->quantity - $quantity);
+        $newTotal = max(0, (float) $workOrderPart->total_cost - ($quantity * $unitCost));
+
+        $workOrderPart->update([
+            'quantity' => $newQuantity,
+            'unit_cost' => $newQuantity > 0 ? $newTotal / $newQuantity : 0,
+            'total_cost' => round($newTotal, 2),
+        ]);
+    }
+
+    private function reduceWorkOrderPartDamage(WorkOrder $workOrder, int $partId, int $quantity): void
+    {
+        $workOrderPart = WorkOrderPart::query()
+            ->where('work_order_id', $workOrder->id)
+            ->where('part_id', $partId)
+            ->lockForUpdate()
+            ->first();
+
+        if (! $workOrderPart) {
+            return;
+        }
+
+        $workOrderPart->update([
+            'quantity_damaged' => max(0, (int) $workOrderPart->quantity_damaged - $quantity),
+        ]);
     }
 
     private function partMovementLabel(string $type): string
@@ -612,5 +787,4 @@ class JobCardController extends Controller
 
         return true;
     }
-
 }

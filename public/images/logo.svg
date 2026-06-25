@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <!-- white interior of the hexagon -->
+  <polygon points="256,44 466,168 466,344 256,468 46,344 46,168" fill="#FFFFFF"/>
+
+  <!-- blue open delivery box (bottom) -->
+  <polygon points="46,236 46,344 256,468 466,344 466,236 336,312 256,348 176,312" fill="#1E6BFF"/>
+  <!-- right face shading for depth -->
+  <polygon points="256,348 256,468 466,344 466,236 336,312" fill="#1659D8"/>
+
+  <!-- slate house (top) -->
+  <g fill="#2B3442">
+    <!-- chimney -->
+    <rect x="132" y="104" width="30" height="70"/>
+    <!-- roof -->
+    <polygon points="92,182 256,58 420,182"/>
+    <!-- body -->
+    <rect x="120" y="182" width="272" height="46"/>
+  </g>
+
+  <!-- "TO" lettering on the white interior -->
+  <text x="206" y="318" font-family="Arial, Helvetica, sans-serif" font-size="74" font-weight="900" letter-spacing="2" fill="#2B3442">TO</text>
+
+  <!-- play / dispatch triangle -->
+  <polygon points="330,286 384,316 330,346" fill="#2B3442"/>
+</svg>

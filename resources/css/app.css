@@ -1,0 +1,140 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    html.dark {
+        color-scheme: dark;
+    }
+
+    .dark body {
+        @apply bg-gray-950 text-gray-100;
+    }
+}
+
+@layer components {
+    input,
+    select,
+    textarea {
+        background-color: rgb(255 255 255);
+        color: rgb(17 24 39);
+    }
+
+    option {
+        background-color: rgb(255 255 255);
+        color: rgb(17 24 39);
+    }
+
+    .dark .bg-white {
+        @apply bg-gray-900;
+    }
+
+    .dark .bg-gray-50,
+    .dark .bg-gray-100 {
+        @apply bg-gray-950;
+    }
+
+    .dark .border-gray-100,
+    .dark .border-gray-200,
+    .dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
+        @apply border-gray-800;
+    }
+
+    .dark .text-gray-900,
+    .dark .text-gray-800,
+    .dark .text-gray-700 {
+        color: rgb(243 244 246);
+    }
+
+    .dark .text-gray-600,
+    .dark .text-gray-500 {
+        color: rgb(209 213 219);
+    }
+
+    .dark .text-gray-400 {
+        color: rgb(107 114 128);
+    }
+
+    .dark .shadow,
+    .dark .shadow-sm,
+    .dark .shadow-md,
+    .dark .shadow-xl {
+        box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.45);
+    }
+
+    .dark input,
+    .dark select,
+    .dark textarea {
+        border-color: rgb(55 65 81);
+        background-color: rgb(3 7 18);
+        color: rgb(243 244 246);
+    }
+
+    .dark input::placeholder,
+    .dark textarea::placeholder {
+        color: rgb(107 114 128);
+    }
+
+    .dark option {
+        background-color: rgb(3 7 18);
+        color: rgb(243 244 246);
+    }
+
+    .dark input[type='checkbox'] {
+        @apply border-gray-600 bg-gray-900;
+    }
+
+    .table-scroll {
+        @apply overflow-x-auto bg-white shadow-sm sm:rounded-lg;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .table-scroll > table {
+        min-width: max(100%, 58rem);
+    }
+
+    .table-scroll th,
+    .table-scroll td {
+        white-space: nowrap;
+    }
+
+    .sidebar-scroll {
+        scrollbar-color: rgb(99 102 241) rgb(238 242 255);
+        scrollbar-width: thin;
+    }
+
+    .sidebar-scroll::-webkit-scrollbar {
+        width: 10px;
+    }
+
+    .sidebar-scroll::-webkit-scrollbar-track {
+        background: rgb(238 242 255);
+    }
+
+    .sidebar-scroll::-webkit-scrollbar-thumb {
+        border: 2px solid rgb(238 242 255);
+        border-radius: 999px;
+        background: rgb(99 102 241);
+    }
+
+    .sidebar-scroll::-webkit-scrollbar-thumb:hover {
+        background: rgb(79 70 229);
+    }
+
+    .dark .sidebar-scroll {
+        scrollbar-color: rgb(129 140 248) rgb(17 24 39);
+    }
+
+    .dark .sidebar-scroll::-webkit-scrollbar-track {
+        background: rgb(17 24 39);
+    }
+
+    .dark .sidebar-scroll::-webkit-scrollbar-thumb {
+        border-color: rgb(17 24 39);
+        background: rgb(129 140 248);
+    }
+
+    .dark .sidebar-scroll::-webkit-scrollbar-thumb:hover {
+        background: rgb(165 180 252);
+    }
+}

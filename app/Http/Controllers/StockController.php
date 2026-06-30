@@ -57,6 +57,25 @@ class StockController extends Controller
         return back()->with('success', 'Raw material stock adjusted.');
     }
 
+    public function opening(Request $request, StockService $stock)
+    {
+        $data = $request->validate([
+            'raw_material_variant_id' => ['required', 'exists:raw_material_variants,id'],
+            'quantity' => ['required', 'numeric', 'min:0'],
+            'unit_cost' => ['nullable', 'numeric', 'min:0'],
+            'note' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $stock->openingStock(
+            (int) $data['raw_material_variant_id'],
+            (float) $data['quantity'],
+            (float) ($data['unit_cost'] ?? 0),
+            $data['note'] ?? null,
+        );
+
+        return back()->with('success', 'Raw material opening stock saved.');
+    }
+
     public function movements()
     {
         return Inertia::render('Stock/Movements', [

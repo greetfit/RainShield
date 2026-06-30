@@ -8,6 +8,7 @@ import InputError from '@/Components/InputError.vue';
 import ActionMenu from '@/Components/ActionMenu.vue';
 import ActionMenuItem from '@/Components/ActionMenuItem.vue';
 import AppIcon from '@/Components/AppIcon.vue';
+import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import { useTableControls } from '@/Composables/useTableControls';
 import { Head, Link, useForm } from '@inertiajs/vue3';
@@ -20,11 +21,27 @@ const money = (n) => Number(n).toLocaleString(undefined, { minimumFractionDigits
 const qty = (n) => Number(n).toLocaleString(undefined, { maximumFractionDigits: 3 });
 
 const adjustmentTarget = ref(null);
+const openingTarget = ref(null);
 const adjustmentForm = useForm({
     raw_material_variant_id: '',
     counted_quantity: '',
     note: '',
 });
+const openingForm = useForm({
+    raw_material_variant_id: '',
+    quantity: '',
+    unit_cost: '',
+    note: '',
+});
+
+function openOpening(row) {
+    openingTarget.value = row;
+    openingForm.clearErrors();
+    openingForm.raw_material_variant_id = row.id;
+    openingForm.quantity = row.quantity;
+    openingForm.unit_cost = row.average_cost;
+    openingForm.note = '';
+}
 
 function openAdjustment(row) {
     adjustmentTarget.value = row;
@@ -38,6 +55,13 @@ function submitAdjustment() {
     adjustmentForm.post(route('stock.adjust'), {
         preserveScroll: true,
         onSuccess: () => (adjustmentTarget.value = null),
+    });
+}
+
+function submitOpening() {
+    openingForm.post(route('stock.opening'), {
+        preserveScroll: true,
+        onSuccess: () => (openingTarget.value = null),
     });
 }
 </script>
@@ -89,6 +113,7 @@ function submitAdjustment() {
                                 <td class="px-6 py-4 text-right text-sm font-semibold text-gray-900 dark:text-gray-100">{{ money(r.value) }}</td>
                                 <td class="px-6 py-4 text-right text-sm">
                                     <ActionMenu>
+                                        <ActionMenuItem icon="warehouse" @click="openOpening(r)">Opening Stock</ActionMenuItem>
                                         <ActionMenuItem icon="edit" @click="openAdjustment(r)">Adjust</ActionMenuItem>
                                     </ActionMenu>
                                 </td>
@@ -133,6 +158,52 @@ function submitAdjustment() {
                     <SecondaryButton type="button" @click="adjustmentTarget = null">Cancel</SecondaryButton>
                     <PrimaryButton :class="{ 'opacity-50': adjustmentForm.processing }" :disabled="adjustmentForm.processing">
                         Save Adjustment
+                    </PrimaryButton>
+                </div>
+            </form>
+        </Modal>
+
+        <Modal :show="!!openingTarget" @close="openingTarget = null" max-width="md">
+            <form @submit.prevent="submitOpening" class="p-6">
+                <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">Set Opening Stock</h2>
+                <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{{ openingTarget?.label }}</p>
+
+                <div class="mt-5">
+                    <InputLabel for="opening_quantity" value="Opening quantity" />
+                    <TextInput
+                        id="opening_quantity"
+                        type="number"
+                        min="0"
+                        step="0.001"
+                        v-model="openingForm.quantity"
+                        class="mt-1 block w-full"
+                    />
+                    <InputError :message="openingForm.errors.quantity" class="mt-1" />
+                </div>
+
+                <div class="mt-4">
+                    <InputLabel for="opening_unit_cost" value="Unit cost" />
+                    <TextInput
+                        id="opening_unit_cost"
+                        type="number"
+                        min="0"
+                        step="0.0001"
+                        v-model="openingForm.unit_cost"
+                        class="mt-1 block w-full"
+                    />
+                    <InputError :message="openingForm.errors.unit_cost" class="mt-1" />
+                </div>
+
+                <div class="mt-4">
+                    <InputLabel for="opening_note" value="Note" />
+                    <TextInput id="opening_note" v-model="openingForm.note" class="mt-1 block w-full" />
+                    <InputError :message="openingForm.errors.note" class="mt-1" />
+                </div>
+
+                <div class="mt-6 flex justify-end gap-3">
+                    <SecondaryButton type="button" @click="openingTarget = null">Cancel</SecondaryButton>
+                    <PrimaryButton :class="{ 'opacity-50': openingForm.processing }" :disabled="openingForm.processing">
+                        Save Opening Stock
                     </PrimaryButton>
                 </div>
             </form>

@@ -103,6 +103,35 @@ class StockService
         });
     }
 
+    /**
+     * Set the starting balance and cost for a raw material variant.
+     */
+    public function openingStock(
+        int $rawMaterialVariantId,
+        float $quantity,
+        float $unitCost = 0,
+        ?string $note = null,
+    ): StockMovement {
+        return DB::transaction(function () use ($rawMaterialVariantId, $quantity, $unitCost, $note) {
+            $balance = $this->lockBalance($rawMaterialVariantId);
+
+            $balance->quantity = $quantity;
+            $balance->average_cost = $quantity > 0 ? $unitCost : 0;
+            $balance->save();
+
+            return $this->writeMovement(
+                $rawMaterialVariantId,
+                'opening',
+                $quantity,
+                $unitCost,
+                $balance,
+                null,
+                null,
+                $note ?: 'Opening stock',
+            );
+        });
+    }
+
     private function lockBalance(int $rawMaterialVariantId): StockBalance
     {
         return StockBalance::query()

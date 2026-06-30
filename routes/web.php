@@ -215,6 +215,7 @@ Route::middleware(['auth', 'role:admin|stock_manager'])->group(function () {
     Route::get('purchase-returns/{purchaseReturn}', [PurchaseReturnController::class, 'show'])->name('purchase-returns.show');
 
     Route::get('stock', [StockController::class, 'index'])->name('stock.index');
+    Route::post('stock/opening', [StockController::class, 'opening'])->name('stock.opening');
     Route::post('stock/adjust', [StockController::class, 'adjust'])->name('stock.adjust');
     Route::get('stock/movements', [StockController::class, 'movements'])->name('stock.movements');
     Route::get('part-stock', [PartStockController::class, 'index'])->name('part-stock.index');

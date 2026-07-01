@@ -1,3 +1,5 @@
+H0st!nger-Temp-2026#03
+
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteCond %{REQUEST_URI} !^/?public/

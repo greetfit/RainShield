@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\RawMaterial;
 use App\Models\RawMaterialVariant;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class RawMaterialVariantController extends Controller
@@ -24,6 +25,17 @@ class RawMaterialVariantController extends Controller
         $variant->update($data);
 
         return back()->with('success', 'Variant updated.');
+    }
+
+    public function duplicate(RawMaterialVariant $variant)
+    {
+        DB::transaction(function () use ($variant) {
+            $copy = $variant->replicate();
+            $copy->name = $this->duplicateName($variant);
+            $copy->save();
+        });
+
+        return back()->with('success', 'Raw material variant duplicated.');
     }
 
     public function destroy(RawMaterialVariant $variant)
@@ -45,5 +57,22 @@ class RawMaterialVariantController extends Controller
             'code' => ['nullable', 'string', 'max:50'],
             'is_active' => ['boolean'],
         ]);
+    }
+
+    private function duplicateName(RawMaterialVariant $variant): string
+    {
+        $base = 'Copy of '.$variant->name;
+        $name = $base;
+        $count = 2;
+
+        while (RawMaterialVariant::query()
+            ->where('raw_material_id', $variant->raw_material_id)
+            ->where('name', $name)
+            ->exists()) {
+            $name = "Copy {$count} of {$variant->name}";
+            $count++;
+        }
+
+        return $name;
     }
 }

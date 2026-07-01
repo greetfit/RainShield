@@ -102,6 +102,13 @@ function submit() {
 
 const deleteTarget = ref(null);
 const deleteForm = useForm({});
+const duplicateForm = useForm({});
+
+function duplicateVariant(variant) {
+    duplicateForm.post(route('masters.product-variants.duplicate', variant.id), {
+        preserveScroll: true,
+    });
+}
 
 const openingTarget = ref(null);
 const openingForm = useForm({
@@ -199,6 +206,7 @@ function confirmDelete() {
                                         <ActionMenuItem icon="recipe" :href="route('recipes.edit', variant.id)">Recipe</ActionMenuItem>
                                         <ActionMenuItem icon="recipe" :href="route('business-settings.cutting-yield-rules.index', { product_variant_id: variant.id })">Yield Rules</ActionMenuItem>
                                         <ActionMenuItem icon="warehouse" @click="openOpeningStock(variant)">Opening Stock</ActionMenuItem>
+                                        <ActionMenuItem icon="copy" @click="duplicateVariant(variant)">Duplicate</ActionMenuItem>
                                         <ActionMenuItem icon="edit" @click="openEdit(variant)">Edit</ActionMenuItem>
                                         <ActionMenuItem icon="trash" danger @click="deleteTarget = variant">Delete</ActionMenuItem>
                                     </ActionMenu>

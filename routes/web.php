@@ -73,6 +73,7 @@ Route::middleware(['auth', 'role:admin|stock_manager|production_manager'])
         Route::get('raw-materials/{rawMaterial}/variants', [RawMaterialController::class, 'variants'])->name('raw-materials.variants');
         Route::post('raw-materials/{rawMaterial}/variants', [RawMaterialVariantController::class, 'store'])->name('raw-material-variants.store');
         Route::put('raw-material-variants/{variant}', [RawMaterialVariantController::class, 'update'])->name('raw-material-variants.update');
+        Route::post('raw-material-variants/{variant}/duplicate', [RawMaterialVariantController::class, 'duplicate'])->name('raw-material-variants.duplicate');
         Route::delete('raw-material-variants/{variant}', [RawMaterialVariantController::class, 'destroy'])->name('raw-material-variants.destroy');
 
         // Products + their variants
@@ -103,6 +104,7 @@ Route::middleware(['auth', 'role:admin|stock_manager|production_manager'])
         Route::get('products/{product}/variants', [ProductController::class, 'variants'])->name('products.variants');
         Route::post('products/{product}/variants', [ProductVariantController::class, 'store'])->name('product-variants.store');
         Route::put('product-variants/{variant}', [ProductVariantController::class, 'update'])->name('product-variants.update');
+        Route::post('product-variants/{variant}/duplicate', [ProductVariantController::class, 'duplicate'])->name('product-variants.duplicate');
         Route::post('product-variants/{variant}/opening-stock', [ProductVariantController::class, 'openingStock'])->name('product-variants.opening-stock');
         Route::delete('product-variants/{variant}', [ProductVariantController::class, 'destroy'])->name('product-variants.destroy');
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Masters;
 
 use App\Http\Controllers\Controller;
+use App\Models\CuttingYieldRule;
 use App\Models\Product;
 use App\Models\ProductGrade;
 use App\Models\ProductLayer;
@@ -10,6 +11,7 @@ use App\Models\ProductSize;
 use App\Models\ProductVariant;
 use App\Services\FinishedGoodsService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class ProductVariantController extends Controller
@@ -28,6 +30,41 @@ class ProductVariantController extends Controller
         $variant->update($data);
 
         return back()->with('success', 'Variant updated.');
+    }
+
+    public function duplicate(ProductVariant $variant)
+    {
+        DB::transaction(function () use ($variant) {
+            $variant->load(['recipeMaterials', 'recipeParts']);
+
+            $copy = $variant->replicate();
+            $copy->name = 'Copy of '.$variant->name;
+            $copy->sku = null;
+            $copy->save();
+
+            foreach ($variant->recipeMaterials as $material) {
+                $materialCopy = $material->replicate();
+                $materialCopy->product_variant_id = $copy->id;
+                $materialCopy->save();
+            }
+
+            foreach ($variant->recipeParts as $part) {
+                $partCopy = $part->replicate();
+                $partCopy->product_variant_id = $copy->id;
+                $partCopy->save();
+            }
+
+            CuttingYieldRule::query()
+                ->where('product_variant_id', $variant->id)
+                ->get()
+                ->each(function (CuttingYieldRule $rule) use ($copy) {
+                    $ruleCopy = $rule->replicate();
+                    $ruleCopy->product_variant_id = $copy->id;
+                    $ruleCopy->save();
+                });
+        });
+
+        return back()->with('success', 'Variant duplicated.');
     }
 
     public function destroy(ProductVariant $variant)

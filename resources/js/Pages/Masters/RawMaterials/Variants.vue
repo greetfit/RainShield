@@ -61,6 +61,14 @@ function submit() {
 
 const deleteTarget = ref(null);
 const deleteForm = useForm({});
+const duplicateForm = useForm({});
+
+function duplicateVariant(variant) {
+    duplicateForm.post(route('masters.raw-material-variants.duplicate', variant.id), {
+        preserveScroll: true,
+    });
+}
+
 function confirmDelete() {
     deleteForm.delete(route('masters.raw-material-variants.destroy', deleteTarget.value.id), {
         preserveScroll: true,
@@ -115,6 +123,7 @@ function confirmDelete() {
                                 </td>
                                 <td class="px-6 py-4 text-right text-sm">
                                     <ActionMenu>
+                                        <ActionMenuItem icon="copy" @click="duplicateVariant(variant)">Duplicate</ActionMenuItem>
                                         <ActionMenuItem icon="edit" @click="openEdit(variant)">Edit</ActionMenuItem>
                                         <ActionMenuItem icon="trash" danger @click="deleteTarget = variant">Delete</ActionMenuItem>
                                     </ActionMenu>

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\RawMaterial;
 use App\Models\UnitOfMeasure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class RawMaterialController extends Controller
@@ -38,6 +39,25 @@ class RawMaterialController extends Controller
         $rawMaterial->update($data);
 
         return back()->with('success', 'Raw material updated.');
+    }
+
+    public function duplicate(RawMaterial $rawMaterial)
+    {
+        DB::transaction(function () use ($rawMaterial) {
+            $rawMaterial->load('variants');
+
+            $copy = $rawMaterial->replicate();
+            $copy->name = 'Copy of '.$rawMaterial->name;
+            $copy->save();
+
+            foreach ($rawMaterial->variants as $variant) {
+                $variantCopy = $variant->replicate();
+                $variantCopy->raw_material_id = $copy->id;
+                $variantCopy->save();
+            }
+        });
+
+        return back()->with('success', 'Raw material duplicated with variants.');
     }
 
     public function destroy(RawMaterial $rawMaterial)

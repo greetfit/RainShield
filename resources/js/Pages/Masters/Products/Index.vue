@@ -70,6 +70,14 @@ function submit() {
 
 const deleteTarget = ref(null);
 const deleteForm = useForm({});
+const duplicateForm = useForm({});
+
+function duplicateProduct(product) {
+    duplicateForm.post(route('masters.products.duplicate', product.id), {
+        preserveScroll: true,
+    });
+}
+
 function confirmDelete() {
     deleteForm.delete(route('masters.products.destroy', deleteTarget.value.id), {
         preserveScroll: true,
@@ -127,6 +135,7 @@ function confirmDelete() {
                                 <td class="px-6 py-4 text-right text-sm">
                                     <ActionMenu>
                                         <ActionMenuItem icon="recipe" :href="route('masters.products.variants', product.id)">Manage variants</ActionMenuItem>
+                                        <ActionMenuItem icon="copy" @click="duplicateProduct(product)">Duplicate</ActionMenuItem>
                                         <ActionMenuItem icon="edit" @click="openEdit(product)">Edit</ActionMenuItem>
                                         <ActionMenuItem icon="trash" danger @click="deleteTarget = product">Delete</ActionMenuItem>
                                     </ActionMenu>

@@ -68,6 +68,7 @@ Route::middleware(['auth', 'role:admin|stock_manager|production_manager'])
         Route::get('raw-materials', [RawMaterialController::class, 'index'])->name('raw-materials.index');
         Route::post('raw-materials', [RawMaterialController::class, 'store'])->name('raw-materials.store');
         Route::put('raw-materials/{rawMaterial}', [RawMaterialController::class, 'update'])->name('raw-materials.update');
+        Route::post('raw-materials/{rawMaterial}/duplicate', [RawMaterialController::class, 'duplicate'])->name('raw-materials.duplicate');
         Route::delete('raw-materials/{rawMaterial}', [RawMaterialController::class, 'destroy'])->name('raw-materials.destroy');
         Route::get('raw-materials/{rawMaterial}/variants', [RawMaterialController::class, 'variants'])->name('raw-materials.variants');
         Route::post('raw-materials/{rawMaterial}/variants', [RawMaterialVariantController::class, 'store'])->name('raw-material-variants.store');
@@ -83,6 +84,7 @@ Route::middleware(['auth', 'role:admin|stock_manager|production_manager'])
         Route::get('products', [ProductController::class, 'index'])->name('products.index');
         Route::post('products', [ProductController::class, 'store'])->name('products.store');
         Route::put('products/{product}', [ProductController::class, 'update'])->name('products.update');
+        Route::post('products/{product}/duplicate', [ProductController::class, 'duplicate'])->name('products.duplicate');
         Route::delete('products/{product}', [ProductController::class, 'destroy'])->name('products.destroy');
 
         Route::get('product-sizes', [ProductSizeController::class, 'index'])->name('product-sizes.index');

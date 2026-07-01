@@ -67,6 +67,14 @@ function submit() {
 
 const deleteTarget = ref(null);
 const deleteForm = useForm({});
+const duplicateForm = useForm({});
+
+function duplicateMaterial(material) {
+    duplicateForm.post(route('masters.raw-materials.duplicate', material.id), {
+        preserveScroll: true,
+    });
+}
+
 function confirmDelete() {
     deleteForm.delete(route('masters.raw-materials.destroy', deleteTarget.value.id), {
         preserveScroll: true,
@@ -124,6 +132,7 @@ function confirmDelete() {
                                 <td class="px-6 py-4 text-right text-sm">
                                     <ActionMenu>
                                         <ActionMenuItem icon="recipe" :href="route('masters.raw-materials.variants', material.id)">Manage variants</ActionMenuItem>
+                                        <ActionMenuItem icon="copy" @click="duplicateMaterial(material)">Duplicate</ActionMenuItem>
                                         <ActionMenuItem icon="edit" @click="openEdit(material)">Edit</ActionMenuItem>
                                         <ActionMenuItem icon="trash" danger @click="deleteTarget = material">Delete</ActionMenuItem>
                                     </ActionMenu>

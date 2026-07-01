@@ -9,6 +9,7 @@ use App\Models\ProductGrade;
 use App\Models\ProductLayer;
 use App\Models\ProductSize;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class ProductController extends Controller
@@ -52,6 +53,26 @@ class ProductController extends Controller
         $product->update($data);
 
         return back()->with('success', 'Product updated.');
+    }
+
+    public function duplicate(Product $product)
+    {
+        DB::transaction(function () use ($product) {
+            $product->load('variants');
+
+            $copy = $product->replicate();
+            $copy->name = 'Copy of '.$product->name;
+            $copy->save();
+
+            foreach ($product->variants as $variant) {
+                $variantCopy = $variant->replicate();
+                $variantCopy->product_id = $copy->id;
+                $variantCopy->sku = null;
+                $variantCopy->save();
+            }
+        });
+
+        return back()->with('success', 'Product duplicated with variants.');
     }
 
     public function destroy(Product $product)
